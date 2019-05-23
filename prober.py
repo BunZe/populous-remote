@@ -1,6 +1,6 @@
 from scapy.all import *
 from scapy.layers.dot11 import *
-packets = rdpcap('./wifiTest01.pcapng')
+packets = rdpcap('./wifiTest05.pcap')
 
 activeChannel = 5
 devices = []
@@ -41,7 +41,8 @@ def main():
                 updateDevice(addr, packet[RadioTap].dBm_AntSignal, seq, devices)
             else:
                 if not matchToDevice(packet, devices):
-                    devices.append(Device(addr, packet[RadioTap].dBm_AntSignal, seq, p[Dot11EltVendorSpecific].oui))
+                    if Dot11EltVendorSpecific in p:
+                        devices.append(Device(addr, packet[RadioTap].dBm_AntSignal, seq, p[Dot11EltVendorSpecific].oui))
 
 
 
@@ -51,12 +52,13 @@ def matchToDevice(packet, devices):
     for device in devices:
         if device.lastSeq < newSeq:
             if newSeq - device.lastSeq < 35:
-                if p[Dot11EltVendorSpecific].oui == device.firstVendorSpecificTag:
-                    # Probably same device, new MAC Address
-                    device.lastSeq = newSeq
-                    if device.signalStrength < packet[RadioTap].dBm_AntSignal:
-                        device.signalStrength = packet[RadioTap].dBm_AntSignal
-                    return True
+                if Dot11EltVendorSpecific in p:
+                    if p[Dot11EltVendorSpecific].oui == device.firstVendorSpecificTag:
+                        # Probably same device, new MAC Address
+                        device.lastSeq = newSeq
+                        if device.signalStrength < packet[RadioTap].dBm_AntSignal:
+                            device.signalStrength = packet[RadioTap].dBm_AntSignal
+                        return True
     return False
 
 
@@ -64,3 +66,9 @@ main()
 for d in devices:
     print(d)
 
+counter = 0
+for d in devices:
+    if d.signalStrength > -80:
+        counter+=1
+
+print("Num of devices in vicinity: "+str(counter))
