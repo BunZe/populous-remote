@@ -1,12 +1,10 @@
-from scapy.all import *
 from scapy.layers.dot11 import *
-packets = rdpcap('./wifiTest05.pcap')
 
-activeChannel = 5
 devices = []
 
 
 def updateDevice(addr, signal, newSeq, list):
+    global devices
     for device in list:
         if device.addr == addr:
             device.lastSeq = newSeq
@@ -31,7 +29,8 @@ class Device:
         return "===\n"+"Address: "+self.addr+"\n"+"Signal: "+str(self.signalStrength)+"\n"+"lastSeq: "+str(self.lastSeq)+"\n==="
 
 
-def main():
+def analyze(minSignal, packets):
+    global devices
     for packet in packets:
         if Dot11ProbeReq in packet:
             p = packet[Dot11FCS]
@@ -43,6 +42,13 @@ def main():
                 if not matchToDevice(packet, devices):
                     if Dot11EltVendorSpecific in p:
                         devices.append(Device(addr, packet[RadioTap].dBm_AntSignal, seq, p[Dot11EltVendorSpecific].oui))
+
+    counter = 0
+    for d in devices:
+        if d.signalStrength > minSignal:
+            counter += 1
+
+    return counter
 
 
 
@@ -61,15 +67,3 @@ def matchToDevice(packet, devices):
                         return True
     return False
 
-
-main()
-
-for d in devices:
-    print(d)
-
-counter = 0
-for d in devices:
-    if d.signalStrength > -80:
-        counter+=1
-
-print("Num of devices in vicinity: "+str(counter))
